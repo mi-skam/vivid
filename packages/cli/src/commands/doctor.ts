@@ -1,5 +1,5 @@
-import type { Vivid } from '@genz-its/vivid-sdk';
-import { VividError } from '@genz-its/vivid-sdk';
+import type { Vivid } from '@mi-skam/vivid-sdk';
+import { VividError } from '@mi-skam/vivid-sdk';
 import { consola } from 'consola';
 import { z } from 'zod';
 import { defineCommand, defineOptions } from 'zodline';

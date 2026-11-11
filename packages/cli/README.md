@@ -1,4 +1,4 @@
-# @genz-its/vivid-cli
+# @mi-skam/vivid
 
 Unofficial command-line interface for the [Vivid Business](https://vivid.money/en-eu/business/) API.[^1]
 
@@ -17,15 +17,22 @@ Unofficial command-line interface for the [Vivid Business](https://vivid.money/e
 
 ## Installation
 
-```bash
-npm install -g @genz-its/vivid-cli
-```
-
-Alternatively, run it without installation:
+The packages are not published to npm. Install the CLI from a GitHub release (the CLI tarball bundles the matching SDK):
 
 ```bash
-npx --package=@genz-its/vivid-cli vivid <command>
+gh release download vX.Y.Z --repo mi-skam/vivid --pattern 'vivid-cli-*.tgz'
+npm install -g ./vivid-cli-X.Y.Z.tgz
 ```
+
+or build it from source:
+
+```bash
+git clone https://github.com/mi-skam/vivid && cd vivid
+npm install && npm run build && npm run release:pack
+npm install -g ./release-artifacts/vivid-cli-*.tgz
+```
+
+If the global npm prefix is not writable (e.g. on Nix), add `--prefix ~/.local` and put `~/.local/bin` on your `PATH`.
 
 ## Quickstart
 

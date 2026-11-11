@@ -1,5 +1,5 @@
 {
-  "name": "@genz-its/vivid-sdk",
+  "name": "@mi-skam/vivid-sdk",
   "version": "0.0.0",
   "description": "Unofficial Node.js SDK for the Vivid Business API.",
   "type": "module",
@@ -37,7 +37,7 @@
     "sdk",
     "banking"
   ],
-  "author": "Robin Genz <mail@genz-its.de>",
+  "author": "mxm",
   "license": "MIT",
   "engines": {
     "node": ">=22"

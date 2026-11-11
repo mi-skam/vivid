@@ -1,4 +1,4 @@
-import type { Account, Transaction } from '@genz-its/vivid-sdk';
+import type { Account, Transaction } from '@mi-skam/vivid-sdk';
 import { describe, expect, it } from 'vitest';
 import {
   accountIban,

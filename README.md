@@ -7,10 +7,10 @@ Unofficial Node.js SDK and CLI for the [Vivid Business](https://vivid.money/en-e
 
 ## Packages
 
-| Package                                  | Description                                                   |
-| ---------------------------------------- | ------------------------------------------------------------- |
-| [`@genz-its/vivid-sdk`](./packages/sdk/) | Unofficial Node.js SDK for the Vivid Business API.            |
-| [`@genz-its/vivid-cli`](./packages/cli/) | Unofficial command-line interface for the Vivid Business API. |
+| Package                                 | Description                                                   |
+| --------------------------------------- | ------------------------------------------------------------- |
+| [`@mi-skam/vivid-sdk`](./packages/sdk/) | Unofficial Node.js SDK for the Vivid Business API.            |
+| [`@mi-skam/vivid`](./packages/cli/)     | Unofficial command-line interface for the Vivid Business API. |
 
 ## Features
 
@@ -23,8 +23,11 @@ Unofficial Node.js SDK and CLI for the [Vivid Business](https://vivid.money/en-e
 
 Node.js 22 or later and a Vivid Business API key are required. Create a key in Vivid Business on the web under **API > Add API token** and tick the permissions you need (`accounts:read`, `transactions:read`, `cards:read`).
 
+Install the CLI from a GitHub release (not published to npm; see [`packages/cli`](./packages/cli/#installation) for building from source):
+
 ```bash
-npm install -g @genz-its/vivid-cli
+gh release download vX.Y.Z --repo mi-skam/vivid --pattern 'vivid-cli-*.tgz'
+npm install -g ./vivid-cli-X.Y.Z.tgz
 
 vivid login
 vivid doctor
@@ -61,7 +64,7 @@ Unit tests mock `fetch` and never reach the API. CI runs on Node.js 22 and 24.
 
 ### Releases
 
-release-please (with the `node-workspace` plugin) opens release PRs from conventional commits and publishes to npm via OIDC trusted publishing when one is merged. Pushing a `vX.Y.Z` tag additionally builds, verifies and attaches tarballs plus `SHA256SUMS` to a GitHub release; add `docs/releases/vX.Y.Z.md` first. To build and verify the tarballs locally after `npm run build`:
+release-please (with the `node-workspace` plugin) opens release PRs from conventional commits and bumps versions and changelogs; nothing is published to npm. Pushing a `vX.Y.Z` tag builds, verifies and attaches the tarballs plus `SHA256SUMS` to a GitHub release; add `docs/releases/vX.Y.Z.md` first. To build and verify the tarballs locally after `npm run build`:
 
 ```bash
 npm run release:pack

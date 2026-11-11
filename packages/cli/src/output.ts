@@ -1,4 +1,4 @@
-import type { Account, Transaction } from '@genz-its/vivid-sdk';
+import type { Account, Transaction } from '@mi-skam/vivid-sdk';
 
 export function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));

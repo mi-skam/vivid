@@ -15,6 +15,11 @@ const artifacts = resolve(process.argv[2] ?? join(root, 'release-artifacts'));
 const cli = JSON.parse(
   await readFile(join(root, 'packages/cli/package.json'), 'utf8'),
 );
+const sdk = JSON.parse(
+  await readFile(join(root, 'packages/sdk/package.json'), 'utf8'),
+);
+/** Installed package directory per tarball kind, derived from the package names. */
+const packageNames = { sdk: sdk.name, cli: cli.name };
 for (const line of (await readFile(join(artifacts, 'SHA256SUMS'), 'utf8'))
   .trim()
   .split('\n')) {
@@ -55,30 +60,30 @@ try {
     );
     const installed = JSON.parse(
       await readFile(
-        join(prefix, 'node_modules/@genz-its', `vivid-${kind}`, 'package.json'),
+        join(prefix, 'node_modules', packageNames[kind], 'package.json'),
         'utf8',
       ),
     );
     assert.equal(installed.version, cli.version);
     assert.equal(
       await readFile(
-        join(prefix, 'node_modules/@genz-its', `vivid-${kind}`, 'LICENSE'),
+        join(prefix, 'node_modules', packageNames[kind], 'LICENSE'),
         'utf8',
       ),
       await readFile(join(root, 'LICENSE'), 'utf8'),
     );
   }
-  const cliRoot = join(staging, 'cli/node_modules/@genz-its/vivid-cli');
+  const cliRoot = join(staging, 'cli/node_modules/@mi-skam/vivid');
   const bundledSdk = JSON.parse(
     await readFile(
-      join(cliRoot, 'node_modules/@genz-its/vivid-sdk/package.json'),
+      join(cliRoot, 'node_modules/@mi-skam/vivid-sdk/package.json'),
       'utf8',
     ),
   );
   assert.equal(bundledSdk.version, cli.version);
   assert.equal(
     await readFile(
-      join(cliRoot, 'node_modules/@genz-its/vivid-sdk/LICENSE'),
+      join(cliRoot, 'node_modules/@mi-skam/vivid-sdk/LICENSE'),
       'utf8',
     ),
     await readFile(join(root, 'LICENSE'), 'utf8'),

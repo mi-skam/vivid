@@ -1,4 +1,4 @@
-import { VividError } from '@genz-its/vivid-sdk';
+import { VividError } from '@mi-skam/vivid-sdk';
 import { z } from 'zod';
 import { ZodlineError } from 'zodline';
 

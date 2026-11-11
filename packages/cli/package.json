@@ -1,5 +1,5 @@
 {
-  "name": "@genz-its/vivid-cli",
+  "name": "@mi-skam/vivid",
   "version": "0.0.0",
   "description": "Unofficial command-line interface for the Vivid Business API.",
   "type": "module",
@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@genz-its/vivid-sdk": "0.0.0",
+    "@mi-skam/vivid-sdk": "0.0.0",
     "consola": "3.4.2",
     "zod": "4.6.7",
     "zodline": "0.3.0"
@@ -37,7 +37,7 @@
     "cli",
     "banking"
   ],
-  "author": "Robin Genz <mail@genz-its.de>",
+  "author": "mxm",
   "license": "MIT",
   "engines": {
     "node": ">=22"

@@ -21,8 +21,8 @@ npm run typecheck             # tsc --noEmit in every workspace
 npm run lint                  # eslint . && prettier --check .
 npm run fmt                   # eslint --fix . && prettier --write .
 
-npm test -w @genz-its/vivid-sdk -- transactions   # single test file (vitest name filter)
-npm test -w @genz-its/vivid-cli -- --watch
+npm test -w @mi-skam/vivid-sdk -- transactions   # single test file (vitest name filter)
+npm test -w @mi-skam/vivid -- --watch
 
 node packages/cli/dist/index.js <command>         # run the built CLI locally
 ```
@@ -33,7 +33,7 @@ CLI tests import the SDK through the workspace link, which resolves to `packages
 
 npm workspaces monorepo with two published packages. **The CLI is a thin layer over the SDK — never call the Vivid API directly from CLI code.**
 
-### `packages/sdk` — `@genz-its/vivid-sdk`
+### `packages/sdk` — `@mi-skam/vivid-sdk`
 
 Zero runtime dependencies, native `fetch`, ESM only.
 
@@ -43,13 +43,13 @@ Zero runtime dependencies, native `fetch`, ESM only.
 - `src/types.ts` — `OpenEnum`, `Amount`, `DateInput`, `CursorListOptions`, `CursorPage`. `src/dates.ts` — `toRfc3339`.
 - `src/index.ts` re-exports everything; new resources must be added there.
 
-### `packages/cli` — `@genz-its/vivid-cli` (bin `vivid`)
+### `packages/cli` — `@mi-skam/vivid` (bin `vivid`)
 
 Built on `zodline` + `zod` + `consola`.
 
 - `src/index.ts` — registers every command in a flat `commands` map keyed `group:action` (e.g. `transactions:list`). New commands must be imported and registered here. Top-level try/catch funnels all errors through `formatError`, then sets exit code 1.
 - `src/commands/<group>/<action>.ts` — one `defineCommand({ description, args?, options: defineOptions(z.object({…})), action })` per file, default-exported.
-- `src/client.ts` — `requireClient()` resolves the key and exits with a hint if absent; `createClient()` sets the CLI `User-Agent` (`@genz-its/vivid-cli/<version>`).
+- `src/client.ts` — `requireClient()` resolves the key and exits with a hint if absent; `createClient()` sets the CLI `User-Agent` (`@mi-skam/vivid/<version>`).
 - `src/config.ts` — key resolution order: `VIVID_API_KEY` env var → `~/.config/vivid/config.json` (`apiKey`, respects `XDG_CONFIG_HOME`, written with mode `0600`). No OS keyring.
 - `src/arguments.ts` — `idArgument` validates UUIDs (8-4-4-4-12) before any request; `requireIdArgument` prompts when interactive; `listOption` flattens repeatable, comma-separated options.
 - `src/resolve.ts` — resolves account/card names to IDs (see API quirks).
@@ -89,4 +89,4 @@ Vitest, no network. SDK tests build a resource on an `HttpClient` with a mocked 
 
 ## Releases
 
-release-please with the `node-workspace` plugin; conventional commits drive versioning, and merging the release PR publishes to npm via OIDC trusted publishing (`.github/workflows/release.yml`). Pushing a `vX.Y.Z` tag runs `.github/workflows/github-release.yml`, which builds, tests, runs `scripts/package-release.mjs` (SDK tarball + CLI tarball with the exact SDK bundled, plus `SHA256SUMS`) and `scripts/verify-release.mjs` (isolated install and offline smoke tests), and publishes a GitHub release with notes from `docs/releases/vX.Y.Z.md`. Both packages share a version. `save-exact=true` — all dependency versions are pinned, including the CLI's dependency on the SDK version (release-please bumps it). Changelogs are generated and excluded from prettier.
+release-please with the `node-workspace` plugin; conventional commits drive versioning; `.github/workflows/release.yml` only maintains the release PR, versions and changelogs. **Nothing is published to npm** — releases are GitHub releases only. Pushing a `vX.Y.Z` tag runs `.github/workflows/github-release.yml`, which builds, tests, runs `scripts/package-release.mjs` (SDK tarball + CLI tarball with the exact SDK bundled, plus `SHA256SUMS`) and `scripts/verify-release.mjs` (isolated install and offline smoke tests), and publishes a GitHub release with notes from `docs/releases/vX.Y.Z.md`. Both packages share a version. `save-exact=true` — all dependency versions are pinned, including the CLI's dependency on the SDK version (release-please bumps it). Changelogs are generated and excluded from prettier.

@@ -1,4 +1,4 @@
-import { Vivid } from '@genz-its/vivid-sdk';
+import { Vivid } from '@mi-skam/vivid-sdk';
 import { consola } from 'consola';
 import { resolveApiKey } from './config';
 import { pkg } from './package';

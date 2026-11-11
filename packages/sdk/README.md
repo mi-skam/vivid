@@ -1,4 +1,4 @@
-# @genz-its/vivid-sdk
+# @mi-skam/vivid-sdk
 
 Unofficial Node.js SDK for the [Vivid Business](https://vivid.money/en-eu/business/) API.[^1]
 
@@ -16,14 +16,17 @@ Unofficial Node.js SDK for the [Vivid Business](https://vivid.money/en-eu/busine
 
 ## Installation
 
+The package is not published to npm. Install the SDK tarball from a GitHub release:
+
 ```bash
-npm install @genz-its/vivid-sdk
+gh release download vX.Y.Z --repo mi-skam/vivid --pattern 'vivid-sdk-*.tgz'
+npm install ./vivid-sdk-X.Y.Z.tgz
 ```
 
 ## Usage
 
 ```ts
-import { Vivid } from '@genz-its/vivid-sdk';
+import { Vivid } from '@mi-skam/vivid-sdk';
 
 const vivid = new Vivid({ apiKey: process.env.VIVID_API_KEY! });
 
@@ -57,7 +60,7 @@ do {
 | `apiKey`    | The API key exactly as issued, sent as raw `Authorization` header — no `Bearer`. | –                                               |
 | `baseUrl`   | The API base URL, without `/api/v1`.                                             | `https://api.prime.vivid.money/sme-integration` |
 | `timeout`   | Request timeout in milliseconds.                                                 | `30000`                                         |
-| `userAgent` | The `User-Agent` header value.                                                   | `@genz-its/vivid-sdk`                           |
+| `userAgent` | The `User-Agent` header value.                                                   | `@mi-skam/vivid-sdk`                            |
 | `fetch`     | A custom `fetch` implementation, for example for testing or proxying.            | `globalThis.fetch`                              |
 
 ### Resources
@@ -76,7 +79,7 @@ Request options are camelCase (`accountIds`, `updatedFrom`); responses are retur
 Any non-2xx response throws a `VividError`. Handle it by `status`, then by `code` — never by `message`, which is meant for people and can change. Treat an unknown code as a generic error of its status.
 
 ```ts
-import { VividError } from '@genz-its/vivid-sdk';
+import { VividError } from '@mi-skam/vivid-sdk';
 
 try {
   await vivid.transactions.get({ transactionId });

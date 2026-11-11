@@ -38,7 +38,7 @@ describe('account commands', () => {
     expect(url.pathname).toBe(`${BASE_PATH}/api/v1/accounts/current/list`);
     expect(body).toEqual({ include_closed: false });
     expect((init.headers as Record<string, string>)['User-Agent']).toMatch(
-      /^@genz-its\/vivid-cli\//,
+      /^@mi-skam\/vivid\//,
     );
     const text = output();
     expect(text).toMatch(

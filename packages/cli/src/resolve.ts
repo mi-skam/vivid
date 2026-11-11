@@ -1,4 +1,4 @@
-import type { Account, Card, Vivid } from '@genz-its/vivid-sdk';
+import type { Account, Card, Vivid } from '@mi-skam/vivid-sdk';
 import { consola } from 'consola';
 import { isUuid } from './arguments';
 import { fetchAll } from './pagination';

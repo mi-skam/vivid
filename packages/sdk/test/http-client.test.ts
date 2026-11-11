@@ -52,7 +52,7 @@ describe('HttpClient', () => {
         Authorization: 'vivid_sk_v1_abc',
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'User-Agent': '@genz-its/vivid-sdk',
+        'User-Agent': '@mi-skam/vivid-sdk',
       });
       expect(body).toEqual({});
     });
