@@ -64,7 +64,43 @@ Unit tests mock `fetch` and never reach the API. CI runs on Node.js 22 and 24.
 
 ### Releases
 
-release-please opens a release PR from conventional commits that bumps both packages to one shared version and updates `CHANGELOG.md`; nothing is published to npm. Merging it tags `vX.Y.Z`, creates the GitHub release and attaches the tarballs plus `SHA256SUMS` (`.github/workflows/github-release.yml`, which can also be run by hand for an existing tag). To build and verify the tarballs locally after `npm run build`:
+Releases are GitHub releases only; nothing is published to npm. Both packages always share one version, tagged `vX.Y.Z`. Shipping a release takes one manual step: merging the release PR.
+
+1. **Use conventional commit prefixes.** When squash-merging, the PR title becomes the commit message, so give the title the prefix. While the version is below 1.0:
+
+   | Prefix                                         | Example                          | Effect (from 0.1.0) |
+   | ---------------------------------------------- | -------------------------------- | ------------------- |
+   | `fix:`                                         | `fix: handle empty card list`    | 0.1.1               |
+   | `feat:`                                        | `feat: add cards:freeze command` | 0.1.1               |
+   | `feat!:` or `BREAKING CHANGE:` in the body     | `feat!: rename --account option` | 0.2.0               |
+   | `chore:`, `ci:`, `docs:`, `test:`, `refactor:` | `docs: fix README typo`          | no release          |
+
+2. **release-please opens a release PR (automatic).** After each push to `main`, the Release workflow opens or updates a `chore: release X.Y.Z` PR if there are `fix:` or `feat:` commits since the last release. It bumps both package versions, the CLI's pinned SDK version and the lockfile, and updates `CHANGELOG.md`. Don't edit it; it keeps updating itself.
+
+3. **Merge the release PR when you want to ship.** Use merge or squash, never rebase:
+
+   ```bash
+   gh pr list
+   gh pr merge <number> --merge
+   ```
+
+4. **The release is created (automatic, about 2–3 minutes).** The Release workflow tags `vX.Y.Z` and creates the GitHub release with the changelog as notes. It then calls `.github/workflows/github-release.yml`, which builds, lints, typechecks and tests the tag, packs the tarballs, verifies that they install and run, and attaches `vivid-sdk-X.Y.Z.tgz`, `vivid-cli-X.Y.Z.tgz` and `SHA256SUMS`.
+
+5. **Check it worked.** The Release run should be green and the release should list three assets:
+
+   ```bash
+   gh run list --limit 3
+   gh release view vX.Y.Z
+   ```
+
+To install a release, see [Getting started](#getting-started).
+
+**If something goes wrong:**
+
+- **The release has no files:** look at the failed run with `gh run view --log-failed`. Fix the problem on `main`, then rebuild and attach the files to the existing release with `gh workflow run github-release.yml -f tag=vX.Y.Z`.
+- **No release PR appears:** there are no `fix:` or `feat:` commits since the last release. Check your commit prefixes.
+
+To build and verify the tarballs locally after `npm run build`:
 
 ```bash
 npm run release:pack
