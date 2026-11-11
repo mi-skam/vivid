@@ -1,0 +1,48 @@
+{
+  "name": "@genz-its/vivid-cli",
+  "version": "0.0.0",
+  "description": "Unofficial command-line interface for the Vivid Business API.",
+  "type": "module",
+  "bin": {
+    "vivid": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@genz-its/vivid-sdk": "0.0.0",
+    "consola": "3.4.2",
+    "zod": "4.6.7",
+    "zodline": "0.3.0"
+  },
+  "homepage": "https://github.com/mi-skam/vivid",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mi-skam/vivid.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/mi-skam/vivid/issues"
+  },
+  "keywords": [
+    "vivid",
+    "vivid-business",
+    "api",
+    "cli",
+    "banking"
+  ],
+  "author": "Robin Genz <mail@genz-its.de>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

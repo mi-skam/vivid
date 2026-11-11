@@ -1,0 +1,5 @@
+dist/
+release-artifacts/
+package-lock.json
+api.json
+CHANGELOG.md

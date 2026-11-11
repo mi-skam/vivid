@@ -1,0 +1,48 @@
+{
+  "name": "@genz-its/vivid-sdk",
+  "version": "0.0.0",
+  "description": "Unofficial Node.js SDK for the Vivid Business API.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "homepage": "https://github.com/mi-skam/vivid",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mi-skam/vivid.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/mi-skam/vivid/issues"
+  },
+  "keywords": [
+    "vivid",
+    "vivid-business",
+    "api",
+    "sdk",
+    "banking"
+  ],
+  "author": "Robin Genz <mail@genz-its.de>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

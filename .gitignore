@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+release-artifacts/
+*.log
+.DS_Store
+# Local reference download of the Vivid Business API spec; never a codegen source.
+api.json
