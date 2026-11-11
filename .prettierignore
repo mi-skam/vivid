@@ -3,3 +3,5 @@ release-artifacts/
 package-lock.json
 api.json
 CHANGELOG.md
+# Written by release-please in its own (compact) style.
+.release-please-manifest.json
