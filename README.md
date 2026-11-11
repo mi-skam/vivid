@@ -64,7 +64,7 @@ Unit tests mock `fetch` and never reach the API. CI runs on Node.js 22 and 24.
 
 ### Releases
 
-release-please (with the `node-workspace` plugin) opens release PRs from conventional commits and bumps versions and changelogs; nothing is published to npm. Pushing a `vX.Y.Z` tag builds, verifies and attaches the tarballs plus `SHA256SUMS` to a GitHub release; add `docs/releases/vX.Y.Z.md` first. To build and verify the tarballs locally after `npm run build`:
+release-please opens a release PR from conventional commits that bumps both packages to one shared version and updates `CHANGELOG.md`; nothing is published to npm. Merging it tags `vX.Y.Z`, creates the GitHub release and attaches the tarballs plus `SHA256SUMS` (`.github/workflows/github-release.yml`, which can also be run by hand for an existing tag). To build and verify the tarballs locally after `npm run build`:
 
 ```bash
 npm run release:pack

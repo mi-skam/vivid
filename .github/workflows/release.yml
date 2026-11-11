@@ -1,9 +1,9 @@
 name: Release
 
-# release-please maintains the release pull request, the changelogs and the
-# version bumps. Nothing is published to npm: releases are GitHub releases
-# with the packed tarballs, built by github-release.yml when a `v*` tag is
-# pushed.
+# release-please maintains the release pull request, the changelog and the
+# version bumps. When that pull request is merged it tags `vX.Y.Z` and creates
+# the GitHub release; the assets job then builds, verifies and attaches the
+# tarballs. Nothing is published to npm.
 
 on:
   push:
@@ -22,6 +22,19 @@ jobs:
   release:
     if: github.repository == 'mi-skam/vivid'
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - name: Create release pull request
+      - name: Maintain release pull request and release
+        id: release
         uses: googleapis/release-please-action@v4
+
+  assets:
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/github-release.yml
+    with:
+      tag: ${{ needs.release.outputs.tag_name }}
