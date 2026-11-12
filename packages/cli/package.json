@@ -1,6 +1,6 @@
 {
   "name": "@mi-skam/vivid",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Unofficial command-line interface for the Vivid Business API.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@mi-skam/vivid-sdk": "0.1.0",
+    "@mi-skam/vivid-sdk": "0.2.0",
     "consola": "3.4.2",
     "zod": "4.6.7",
     "zodline": "0.3.0"
