@@ -22,9 +22,7 @@ export function databasePath(): string {
   return join(base, 'vivid', 'vivid.db');
 }
 
-const SCHEMA_VERSION = 1;
-
-const SCHEMA = `
+const SCHEMA_V1 = `
   CREATE TABLE accounts (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -59,6 +57,33 @@ const SCHEMA = `
     value TEXT NOT NULL
   );
 `;
+
+/**
+ * Every version of a transaction the store has seen, keyed by its
+ * `updated_at`. A version is recorded when a sync (or `watch --save`) sees
+ * it, so changes that happen and are superseded between two syncs are not
+ * in the log. Existing rows become their own first version.
+ */
+const SCHEMA_V2 = `
+  CREATE TABLE transaction_versions (
+    transaction_id TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    state TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    data TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (transaction_id, updated_at)
+  );
+  CREATE INDEX transaction_versions_updated_at ON transaction_versions (updated_at);
+  INSERT INTO transaction_versions
+    (transaction_id, updated_at, state, amount, data, recorded_at)
+  SELECT id, updated_at, state, json_extract(data, '$.amount'), data, synced_at
+  FROM transactions;
+`;
+
+/** `MIGRATIONS[n]` brings a database from schema version `n` to `n + 1`. */
+const MIGRATIONS = [SCHEMA_V1, SCHEMA_V2];
+const SCHEMA_VERSION = MIGRATIONS.length;
 
 /** Timestamps are stored as `toISOString()` so text comparison is time order. */
 function iso(value: string | Date): string {
@@ -110,12 +135,22 @@ export interface UpsertResult {
   updated: number;
 }
 
+export interface TransactionVersion {
+  /** `updated_at` of this version, as stored (millisecond precision). */
+  updatedAt: string;
+  /** When the store first saw this version. */
+  recordedAt: string;
+  transaction: Transaction;
+}
+
 export interface StoreInfo {
   path: string;
   bytes: number;
   accounts: number;
   cards: number;
   transactions: number;
+  /** Rows in the change log, one per seen version. */
+  versions: number;
   oldest: string | null;
   newest: string | null;
   historyFrom: string | null;
@@ -164,9 +199,11 @@ export class Store {
         `The local database at ${this.path} was created by a newer vivid version. Update the CLI.`,
       );
     }
-    if (version === 0) {
+    if (version < SCHEMA_VERSION) {
       this.transaction(() => {
-        this.db.exec(SCHEMA);
+        for (const step of MIGRATIONS.slice(version)) {
+          this.db.exec(step);
+        }
         this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
       });
     }
@@ -218,6 +255,7 @@ export class Store {
   /**
    * Inserts new transactions and replaces stored ones with a newer
    * `updated_at`. A transaction that leaves the API's 90-day window stays.
+   * Every inserted or newer version is also added to the change log.
    */
   upsertTransactions(
     transactions: Transaction[],
@@ -236,6 +274,11 @@ export class Store {
          occurred_at = excluded.occurred_at, updated_at = excluded.updated_at,
          data = excluded.data, synced_at = excluded.synced_at`,
     );
+    const log = this.db.prepare(
+      `INSERT OR IGNORE INTO transaction_versions
+         (transaction_id, updated_at, state, amount, data, recorded_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    );
     const result: UpsertResult = { inserted: 0, updated: 0 };
     for (const transaction of transactions) {
       const updatedAt = iso(transaction.updated_at);
@@ -244,6 +287,7 @@ export class Store {
       if (stored && stored.updated_at >= updatedAt) {
         continue;
       }
+      const data = JSON.stringify(transaction);
       write.run(
         transaction.id,
         transaction.account_id,
@@ -252,7 +296,15 @@ export class Store {
         transaction.state,
         iso(occurredAt(transaction)),
         updatedAt,
-        JSON.stringify(transaction),
+        data,
+        iso(syncedAt),
+      );
+      log.run(
+        transaction.id,
+        updatedAt,
+        transaction.state,
+        transaction.amount,
+        data,
         iso(syncedAt),
       );
       if (stored) {
@@ -262,6 +314,55 @@ export class Store {
       }
     }
     return result;
+  }
+
+  /**
+   * Versions from the change log, newest change first. With a transaction ID,
+   * every version of that transaction; otherwise the latest `limit` versions
+   * of all transactions.
+   */
+  versions(
+    query: { transactionId?: string; limit?: number } = {},
+  ): TransactionVersion[] {
+    const where =
+      query.transactionId === undefined ? '' : 'WHERE transaction_id = ?';
+    const limit =
+      query.limit === undefined
+        ? ''
+        : `LIMIT ${Math.max(0, Math.floor(query.limit))}`;
+    const params =
+      query.transactionId === undefined ? [] : [query.transactionId];
+    return (
+      this.db
+        .prepare(
+          `SELECT updated_at, recorded_at, data FROM transaction_versions ${where}
+           ORDER BY updated_at DESC, transaction_id DESC ${limit}`,
+        )
+        .all(...params) as Array<{
+        updated_at: string;
+        recorded_at: string;
+        data: string;
+      }>
+    ).map((row) => ({
+      updatedAt: row.updated_at,
+      recordedAt: row.recorded_at,
+      transaction: JSON.parse(row.data) as Transaction,
+    }));
+  }
+
+  /** The version of a transaction stored before `updatedAt`, if any. */
+  previousVersion(
+    transactionId: string,
+    updatedAt: string,
+  ): Transaction | null {
+    const row = this.db
+      .prepare(
+        `SELECT data FROM transaction_versions
+         WHERE transaction_id = ? AND updated_at < ?
+         ORDER BY updated_at DESC LIMIT 1`,
+      )
+      .get(transactionId, updatedAt) as { data: string } | undefined;
+    return row ? (JSON.parse(row.data) as Transaction) : null;
   }
 
   accounts(): Account[] {
@@ -368,6 +469,7 @@ export class Store {
       accounts: count('accounts'),
       cards: count('cards'),
       transactions: count('transactions'),
+      versions: count('transaction_versions'),
       oldest: range.oldest,
       newest: range.newest,
       historyFrom: history.history_from,

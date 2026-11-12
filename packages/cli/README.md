@@ -122,6 +122,7 @@ These are applied by the CLI after fetching the API's whole 90-day window, which
 
 - **Location:** `~/.local/share/vivid/vivid.db` (respecting `XDG_DATA_HOME`), or the path in `VIVID_DB`. It holds real banking data: it is created with mode `0600`; keep it out of shared folders and backups you do not trust.
 - **Requirements:** Node.js 22.13 or later (built-in `node:sqlite`; no native module).
+- **Change log:** every version of a transaction a sync sees is kept in `transaction_versions`, keyed by its `updated_at`, so you can see when a payment went from pending to completed or its amount changed: `vivid db:history <id>`, or `vivid db:history` for the latest changes. Changes that happen and are replaced again between two syncs are not seen; sync more often (or run `transactions:watch --save`) for a finer log.
 - **Inspect:** `vivid db:info`, or open the file with any SQLite tool. The `transactions` table keeps each API object unchanged in `data` (JSON) next to indexed columns.
 - **Reset:** delete the file; the next `db:sync` starts over with the last 90 days.
 
@@ -146,6 +147,7 @@ These are applied by the CLI after fetching the API's whole 90-day window, which
 - [`transactions:watch`](#transactionswatch)
 - [`db:sync`](#dbsync)
 - [`db:info`](#dbinfo)
+- [`db:history`](#dbhistory)
 
 ### `login`
 
@@ -360,7 +362,7 @@ vivid db:sync [options]
 
 ### `db:info`
 
-Show where the local database is, how many accounts, cards and transactions it holds, the oldest and newest payment, from when on it is complete, and when it was last synced. Makes no request.
+Show where the local database is, how many accounts, cards, transactions and change-log versions it holds, the oldest and newest payment, from when on it is complete, and when it was last synced. Makes no request.
 
 ```bash
 vivid db:info [options]
@@ -369,6 +371,21 @@ vivid db:info [options]
 **Options:**
 
 - `--json`: Output in JSON format.
+
+### `db:history`
+
+Show the change log of the [local database](#local-database). With a transaction ID, every stored version of that transaction, oldest first; without one, the latest versions of all transactions, newest first. Each row shows when Vivid changed it (`UPDATED`), when a sync first saw it (`RECORDED`), whether it is `new` or `updated`, and what changed since the previous version, e.g. `state: pending → completed; amount: -12.00 → -12.50`. Makes no request.
+
+```bash
+vivid db:history [id] [options]
+```
+
+**Argument:** `id` — A transaction ID (UUID). If omitted, the latest changes of all transactions are shown.
+
+**Options:**
+
+- `--limit`: Without an ID, how many of the latest versions to show. Defaults to `20`.
+- `--json`: Output in JSON format: `updatedAt`, `recordedAt`, `change`, `changes` and the full `transaction` per version.
 
 ## License
 
