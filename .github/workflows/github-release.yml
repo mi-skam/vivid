@@ -1,8 +1,9 @@
 name: GitHub release assets
 
 # Builds, verifies and attaches the SDK and CLI tarballs plus SHA256SUMS to the
-# GitHub release of a tag. Called by release.yml after release-please creates
-# a release; run it by hand to (re)attach the assets of an existing tag.
+# GitHub release of a tag, then publishes it. Called by release.yml after
+# release-please creates the draft release; run it by hand to finish a release
+# that is still a draft. Published releases are immutable and reject assets.
 
 on:
   workflow_call:
@@ -46,13 +47,21 @@ jobs:
       - run: npm test
       - run: npm run release:pack
       - run: npm run release:verify
-      - name: Attach assets to the GitHub release
+      - name: Attach assets and publish the GitHub release
+        # Immutable releases are enabled: a published release no longer accepts
+        # assets. release-please therefore creates a draft (with the tag forced),
+        # the assets go onto the draft, and only then is it published.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-              --verify-tag --title "$RELEASE_TAG" --generate-notes
+              --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
+          fi
+          if [ "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)" != "true" ]; then
+            echo "::error::$RELEASE_TAG is already published; immutable releases do not accept new assets."
+            exit 1
           fi
           gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber \
             release-artifacts/*.tgz release-artifacts/SHA256SUMS
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
