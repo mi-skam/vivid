@@ -1,42 +1,42 @@
 import { consola } from 'consola';
 import { z } from 'zod';
 import { defineCommand, defineOptions } from 'zodline';
-import { listOption } from '../../arguments';
-import { requireClient } from '../../client';
+import { categoryOf } from '../../categories';
+import { formatOptions, outputFormat, printCsv } from '../../format';
 import {
   amountLabel,
   merchantLabel,
   originalAmountLabel,
   printJson,
   printTable,
-  toTimestamp,
 } from '../../output';
-import { fetchAll } from '../../pagination';
-import { resolveAccountIds } from '../../resolve';
+import { occurredAt } from '../../period';
+import { queryTransactions, transactionFilterOptions } from '../../query';
+
+const CSV_COLUMNS = [
+  'id',
+  'date',
+  'account',
+  'type',
+  'state',
+  'amount',
+  'currency',
+  'original_amount',
+  'original_currency',
+  'merchant',
+  'city',
+  'country',
+  'mcc',
+  'category',
+  'card_last4',
+];
 
 export default defineCommand({
   description:
-    'List transactions of the last 90 days, newest first. Defaults to every visible payment account.',
+    'List transactions of the last 90 days, newest first. Defaults to every visible payment account. With --local, reads the local database instead.',
   options: defineOptions(
     z.object({
-      account: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'Only show transactions of this account, by ID or name (e.g. Reserve). Repeat it or pass a comma-separated list. Cannot be combined with --account-type.',
-        ),
-      accountType: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'Only show transactions of accounts of this type: current or other. Repeat it or pass a comma-separated list. Note: the API currently answers this filter with an internal error (500); prefer --account.',
-        ),
-      type: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'Only show transactions of this type: card_payment, card_refund, atm, transfer, exchange, fee or other. Repeat it or pass a comma-separated list.',
-        ),
+      ...transactionFilterOptions,
       state: z
         .string()
         .optional()
@@ -47,13 +47,13 @@ export default defineCommand({
         .string()
         .optional()
         .describe(
-          'Only show transactions changed at or after this moment (RFC 3339, or YYYY-MM-DD for midnight UTC).',
+          'Only show transactions changed at or after this moment (RFC 3339, or YYYY-MM-DD for midnight UTC). For when a payment happened, use --since.',
         ),
       updatedTo: z
         .string()
         .optional()
         .describe(
-          'Only show transactions changed before this moment (RFC 3339, or YYYY-MM-DD for midnight UTC).',
+          'Only show transactions changed before this moment (RFC 3339, or YYYY-MM-DD for midnight UTC). For when a payment happened, use --until.',
         ),
       limit: z.coerce
         .number()
@@ -63,54 +63,50 @@ export default defineCommand({
         .describe(
           'The maximum number of transactions to return. Defaults to all of them.',
         ),
-      json: z.boolean().default(false).describe('Output in JSON format.'),
+      ...formatOptions,
     }),
   ),
   action: async (options) => {
-    const accountTargets = listOption(options.account);
-    const accountTypes = listOption(options.accountType);
-    if (accountTargets.length > 0 && accountTypes.length > 0) {
-      consola.error('Pass either --account or --account-type, not both.');
-      process.exit(1);
-    }
-    const types = listOption(options.type);
-    const client = await requireClient();
-    // The API needs exactly one of account_ids or account_types. Without a
-    // filter, ask for every visible open account by ID: `account_types`
-    // currently fails with 500 internal_error on the live API.
-    const accountIds =
-      accountTargets.length > 0
-        ? await resolveAccountIds(client, accountTargets)
-        : accountTypes.length > 0
-          ? []
-          : (await client.accounts.list()).map((account) => account.id);
-    if (accountIds.length === 0 && accountTypes.length === 0) {
-      if (options.json) {
-        printJson([]);
-      } else {
-        consola.info('No transactions found.');
-      }
+    const format = outputFormat(options);
+    const { transactions, accountNames } = await queryTransactions(options, {
+      limit: options.limit,
+    });
+    if (format === 'json') {
+      printJson(transactions);
       return;
     }
-    const transactions = await fetchAll(
-      async (page) => {
-        const response = await client.transactions.list({
-          ...(accountIds.length > 0 ? { accountIds } : { accountTypes }),
-          types: types.length > 0 ? types : undefined,
-          state: options.state,
-          updatedFrom: toTimestamp(options.updatedFrom),
-          updatedTo: toTimestamp(options.updatedTo),
-          ...page,
-        });
-        return {
-          items: response.transactions,
-          nextCursor: response.next_cursor,
-        };
-      },
-      { limit: options.limit },
-    );
-    if (options.json) {
-      printJson(transactions);
+    if (format === 'csv') {
+      printCsv(
+        transactions.map((transaction) => ({
+          id: transaction.id,
+          date: occurredAt(transaction),
+          account:
+            accountNames.get(transaction.account_id) || transaction.account_id,
+          type: transaction.type,
+          state: transaction.state,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          original_amount:
+            transaction.original_currency !== transaction.currency
+              ? (transaction.original_amount ?? '')
+              : '',
+          original_currency:
+            transaction.original_currency !== transaction.currency
+              ? (transaction.original_currency ?? '')
+              : '',
+          merchant: transaction.merchant?.name ?? '',
+          city: transaction.merchant?.city ?? '',
+          country: transaction.merchant?.country ?? '',
+          mcc: transaction.merchant?.category_code ?? '',
+          category: categoryOf(transaction.merchant?.category_code) ?? '',
+          card_last4: transaction.card?.last_4 ?? '',
+        })),
+        {
+          columns: CSV_COLUMNS,
+          locale: options.csvLocale,
+          amountColumns: ['amount', 'original_amount'],
+        },
+      );
       return;
     }
     if (transactions.length === 0) {
