@@ -54,11 +54,39 @@ export async function resolveAccountIds(
       continue;
     }
     accounts ??= await client.accounts.list({ includeClosed: true });
-    ids.push(
-      pickOne('account', target, accounts, (a) => [a.name], accountLabel).id,
-    );
+    ids.push(pickAccount(accounts, target).id);
   }
   return ids;
+}
+
+/** Picks the one account a target (ID or name) refers to, without a request. */
+export function pickAccount(accounts: Account[], target: string): Account {
+  if (isUuid(target)) {
+    const id = target.trim().toLowerCase();
+    const found = accounts.find((account) => account.id.toLowerCase() === id);
+    if (found) {
+      return found;
+    }
+  }
+  return pickOne('account', target, accounts, (a) => [a.name], accountLabel);
+}
+
+/** Picks the one card a target (ID, name or last four digits) refers to. */
+export function pickCard(cards: Card[], target: string): Card {
+  if (isUuid(target)) {
+    const id = target.trim().toLowerCase();
+    const found = cards.find((card) => card.id.toLowerCase() === id);
+    if (found) {
+      return found;
+    }
+  }
+  return pickOne(
+    'card',
+    target,
+    cards,
+    (card) => [card.name, card.last_4],
+    cardLabel,
+  );
 }
 
 /** Resolves a single account ID or name. */
@@ -82,11 +110,5 @@ export async function resolveCardId(
     const response = await client.cards.list(page);
     return { items: response.cards, nextCursor: response.next_cursor };
   });
-  return pickOne(
-    'card',
-    target,
-    cards,
-    (card) => [card.name, card.last_4],
-    cardLabel,
-  ).id;
+  return pickCard(cards, target).id;
 }

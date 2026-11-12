@@ -10,6 +10,7 @@ The CLI runs against a real Vivid Business account. There is **no sandbox**: eve
 - **Never run `login` or `logout`** without asking first and getting an explicit yes for that specific run — they write or delete the stored key.
 - **Never read, print or copy the API key.** Do not open `~/.config/vivid/config.json` and do not echo `VIVID_API_KEY`. Do not create or go looking for a key. Touch the account only through the CLI.
 - Output of live commands contains real account data (IBANs, amounts, merchants). Keep it out of the repo, tests, docs and commits.
+- `db:sync` writes real data into a local SQLite file. When trying it, point `VIVID_DB` at a scratch path outside the repo rather than the user's default database, unless asked otherwise.
 
 ## Commands
 
@@ -27,7 +28,7 @@ npm test -w @mi-skam/vivid -- --watch
 node packages/cli/dist/index.js <command>         # run the built CLI locally
 ```
 
-CLI tests import the SDK through the workspace link, which resolves to `packages/sdk/dist` — run `npm run build` before `npm test`. CI runs `build`, `lint`, `typecheck`, `test`, `release:pack` and `release:verify` on Node 22 and 24. Node >= 22 is required.
+CLI tests import the SDK through the workspace link, which resolves to `packages/sdk/dist` — run `npm run build` before `npm test`. CI runs `build`, `lint`, `typecheck`, `test`, `release:pack` and `release:verify` on Node 22 and 24. Node >= 22.13 is required for the CLI (built-in `node:sqlite`), >= 22 for the SDK.
 
 ## Architecture
 
@@ -56,6 +57,12 @@ Built on `zodline` + `zod` + `consola`.
 - `src/options.ts` / `src/prompt.ts` / `src/interactive.ts` — `promptSecret` reads the API key in raw mode and echoes `*` per character (never the key); `requireStringOption` prompts when interactive and exits 1 with an explanatory message when not. Non-interactive = no TTY or `CI` set.
 - `src/pagination.ts` — cursor-based `fetchAll` (see API quirks).
 - `src/output.ts` — `printJson`, `printTable`, and label helpers (`amountLabel`, `accountIban`, `originalAmountLabel`, `merchantLabel`, `toTimestamp`).
+- `src/query.ts` — `queryTransactions` and the shared filter options of `transactions:list`/`transactions:summary`: resolves accounts, reads the API or (`--local`) the store, then applies the filters the API cannot — the payment period (`src/period.ts`: `--since`/`--until`/`--month` on `show_at ?? created_at`, never `updated_at`), `--card` (four digits match `card.last_4` without a request) and `--merchant`. Warns when a period starts before the 90-day window. With a client-side filter, `--limit` applies after filtering, so the whole window is fetched.
+- `src/summary.ts` — `summarize` groups per currency (never mixed), sums in integer cents (`src/money.ts`, `bigint`, never floats), and splits `out` / `refunds` (`card_refund`) / `in` / `transfers` (`transfer`, `exchange`). `src/categories.ts` maps MCCs to coarse hand-written groups.
+- `src/format.ts` — `--format table|json|csv`, `--csv-locale en|de`; `--json` stays as an alias and keeps printing API objects unchanged. `printCsv` prefixes text cells starting with `= + - @` with `'`.
+- `src/store.ts` — the local SQLite database via built-in `node:sqlite` (Node ≥ 22.13), loaded lazily with its experimental warning suppressed. Path: `VIVID_DB` → `$XDG_DATA_HOME/vivid/vivid.db` → `~/.local/share/vivid/vivid.db`, mode `0600`. Schema version in `PRAGMA user_version`; bump `SCHEMA_VERSION` and add a migration step for any schema change. Timestamps are stored as `toISOString()` so text order is time order; each API object is kept unchanged in `data`. Read commands open it with `create: false` and fail with a hint to run `db:sync`.
+- `src/sync.ts` — `syncStore`: one global `watermark` (newest `updated_at` seen) in `meta`; known accounts fetch `updated_from = watermark − 1 h`, new accounts fetch the full window and get `history_from` in `account_sync`. Everything is written in one SQLite transaction. Transactions are never deleted, which is what keeps history beyond 90 days.
+- `src/watch.ts` — `watchTransactions`: polling loop (first poll is a silent baseline, then `updated_from = newest seen − 5 min`, dedupe by id + `updated_at`), injectable `sleep`/`now`/`signal` for tests. The command enforces `--interval` ≥ 30 s because of the rate limit.
 - `src/errors.ts` — maps `ZodlineError`, `ZodError` and `VividError` to user-facing strings: by status, then by `code` (`invalid_key`, `key_revoked`, `key_expired`, `address_not_allowed`, `scope_denied`, `user_not_in_entity`, `issuer_not_permitted`, `entity_inactive`, `outside_history_window`, `rate_limited`), `5xx` with the trace id, unknown codes fall back to the API message.
 
 ## Conventions
@@ -85,7 +92,7 @@ Built on `zodline` + `zod` + `consola`.
 
 Vitest, no network. SDK tests build a resource on an `HttpClient` with a mocked `fetch` (`test/helpers.ts`: `createMockFetch`, `createHttpClient`, `lastRequest`) and assert on the exact URL, method, headers and JSON body; retries are tested with fake timers. CLI tests import the command module directly, `vi.stubGlobal('fetch', …)`, set `VIVID_API_KEY` (and a temporary `XDG_CONFIG_HOME` where config is touched), mock `../src/interactive` and `../src/prompt` where needed, and assert on requests, output and `process.exit` behavior. Add tests alongside every new resource method and command.
 
-**Fixtures are always invented, never real.** Never paste a live API response into a test, a doc or a commit — no real ids, names, IBANs, amounts, merchants or card digits. Use fake UUIDs (`00000000-0000-4000-8000-…`), `ACME GmbH`, and the published test IBAN `DE89370400440532013000`. Keep any live output you capture while debugging outside the repo.
+**Fixtures are always invented, never real.** Never paste a live API response into a test, a doc or a commit, and never commit a database file — no real ids, names, IBANs, amounts, merchants or card digits. Use fake UUIDs (`00000000-0000-4000-8000-…`), `ACME GmbH`, and the published test IBAN `DE89370400440532013000`. Keep any live output you capture while debugging outside the repo.
 
 ## Releases
 

@@ -1,3 +1,5 @@
+import type { Transaction } from '@mi-skam/vivid-sdk';
+
 /**
  * Invented fixtures. Never paste live API responses here: no real ids, names,
  * IBANs or amounts. The IBAN is the published German test IBAN.
@@ -66,3 +68,8 @@ export const card = {
   ],
   limits_visible: true,
 };
+
+/** The fixture transaction with overrides. */
+export function tx(overrides: Partial<Transaction> = {}): Transaction {
+  return { ...(transaction as Transaction), ...overrides };
+}

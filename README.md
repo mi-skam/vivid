@@ -17,11 +17,13 @@ Unofficial Node.js SDK and CLI for the [Vivid Business](https://vivid.money/en-e
 - **Read your Vivid Business data**: accounts and balances, transactions of the last 90 days, and cards with their limits.
 - **Safe by design**: Vivid API v1 is read-only — nothing it offers can move money or change the account.
 - **Scriptable CLI**: `--json` on every command, non-interactive mode, exit codes `0`/`1`, and cursor pagination handled for you.
+- **Insights and export**: filter by payment date, card or merchant; spending summaries per merchant, category, card or month; CSV for Excel; live watch of new transactions.
+- **History beyond 90 days**: `vivid db:sync` keeps every transaction in a local SQLite database that list and summary commands can read without a request.
 - **Zero-dependency SDK**: native `fetch`, hand-written types, retries with backoff.
 
 ## Getting started
 
-Node.js 22 or later and a Vivid Business API key are required. Create a key in Vivid Business on the web under **API > Add API token** and tick the permissions you need (`accounts:read`, `transactions:read`, `cards:read`).
+Node.js 22.13 or later (the SDK alone: 22) and a Vivid Business API key are required. Create a key in Vivid Business on the web under **API > Add API token** and tick the permissions you need (`accounts:read`, `transactions:read`, `cards:read`).
 
 Install the CLI from a GitHub release (not published to npm; see [`packages/cli`](./packages/cli/#installation) for building from source):
 

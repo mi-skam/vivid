@@ -6,3 +6,9 @@ release-artifacts/
 .DS_Store
 # Local reference download of the Vivid Business API spec; never a codegen source.
 api.json
+
+# Local vivid databases hold real banking data.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

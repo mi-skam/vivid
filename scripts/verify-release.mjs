@@ -99,11 +99,16 @@ try {
   for (const command of [
     'login',
     'logout',
+    'ping',
     'doctor',
     'accounts:list',
     'accounts:get',
     'transactions:list',
     'transactions:get',
+    'transactions:summary',
+    'transactions:watch',
+    'db:sync',
+    'db:info',
     'cards:list',
     'cards:get',
   ])
