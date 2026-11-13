@@ -59,7 +59,7 @@ export function totalRows(accounts: Account[]): Array<Record<string, string>> {
 
 export default defineCommand({
   description:
-    'List your payment accounts, with a total per currency when there are several.',
+    'List your payment accounts. The table adds a total per currency when there are several.',
   options: defineOptions(
     z.object({
       includeClosed: z
