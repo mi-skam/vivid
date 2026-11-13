@@ -12,6 +12,7 @@ Unofficial command-line interface for the [Vivid Business](https://vivid.money/e
 - 👀 **Watch**: Print new and changed transactions as they happen.
 - 🪪 **Cards**: List cards and see how much of each limit is used.
 - 🩺 **Doctor**: Check the key, the connection, and which permissions the key has.
+- 🧩 **MCP server**: `vivid mcp` offers the read commands as tools to Claude Code and other MCP clients.
 - 🤖 **Automation-friendly**: `--json` output on every command, non-interactive mode, and stable exit codes.
 
 ## Requirements
@@ -94,7 +95,7 @@ Accounts and cards can be given by ID or by name (case-insensitive; cards also b
 
 The CLI is designed to be scriptable:
 
-- **`--json`**: Every command supports the `--json` flag to output machine-readable JSON, exactly as the API returns it (`transactions:summary` prints its rows).
+- **`--json`**: Every command except `mcp` supports the `--json` flag to output machine-readable JSON, exactly as the API returns it (`transactions:summary` prints its rows).
 - **`--format csv`**: `accounts:list`, `cards:list`, `transactions:list` and `transactions:summary` also print CSV. `--csv-locale de` switches to semicolons and decimal commas with a byte order mark, which Excel in German opens directly. Text cells starting with `=`, `+`, `-` or `@` get a leading `'` so a spreadsheet never runs them as formulas.
 - **Non-interactive mode**: When the CLI runs without a TTY or with the `CI` environment variable set, it never prompts. Missing required values cause an error and exit code `1` instead.
 - **Exit codes**: `0` on success, `1` on any failure.
@@ -131,12 +132,27 @@ These are applied by the CLI after fetching the API's whole 90-day window, which
 0 6 * * * VIVID_API_KEY=… vivid db:sync >/dev/null
 ```
 
+## MCP server
+
+`vivid mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdin/stdout, so Claude Code or another MCP client can query the account. Each tool is a CLI command (`transactions_list` = `transactions:list`) with the same options and the same JSON output, including `local` to answer from the [local database](#local-database). It uses the API key and the database of the CLI.
+
+```bash
+claude mcp add vivid -- vivid mcp
+```
+
+- **Tools**: every `list` and `get` command, `transactions:summary`, `ping`, `doctor`, `db:info`, `db:history` and `db:sync` (which writes only the local database). Vivid API v1 is read-only, so no tool can move money or change the account.
+- **Never offered**: `login` and `logout` (they change the stored key; run them in a terminal) and `transactions:watch` (it never returns).
+- **Results** are compact JSON as the API sends it, with `null` fields left out. A list longer than about 40,000 characters is cut to the records that fit, with a note naming the filters that narrow the query.
+- **Arguments**: `accounts_get` takes `account`, `cards_get` takes `card` (ID or name), `transactions_get` and `db_history` take `id`. A missing argument is an error, never a prompt. Output formats (`--json`, `--format`, `--csv-locale`) are not offered.
+- The results contain real banking data and become part of the conversation with the model; register the server only with clients you trust with it.
+
 ## Commands
 
 - [`login`](#login)
 - [`logout`](#logout)
 - [`ping`](#ping)
 - [`doctor`](#doctor)
+- [`mcp`](#mcp)
 - [`accounts:get`](#accountsget)
 - [`accounts:list`](#accountslist)
 - [`cards:get`](#cardsget)
@@ -197,6 +213,14 @@ vivid doctor [options]
 **Options:**
 
 - `--json`: Output in JSON format.
+
+### `mcp`
+
+Run a Model Context Protocol server on stdin/stdout that offers the read commands as tools. See [MCP server](#mcp-server). It has no options and no `--json`: stdout carries the protocol, messages go to stderr.
+
+```bash
+vivid mcp
+```
 
 ### `accounts:get`
 

@@ -22,7 +22,7 @@ async function commandFiles(): Promise<string[]> {
 
 describe('command registry', () => {
   it('registers every command file', async () => {
-    const registered = new Set(Object.keys(commands));
+    const registered = new Set([...Object.keys(commands), 'mcp']);
     const missing = (await commandFiles()).filter(
       (name) => !registered.has(name),
     );

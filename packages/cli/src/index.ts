@@ -2,6 +2,7 @@
 import { consola } from 'consola';
 import { defineConfig, processConfig } from 'zodline';
 import { commands } from './commands';
+import mcp from './commands/mcp';
 import { formatError } from './errors';
 import { pkg } from './package';
 
@@ -11,7 +12,7 @@ const config = defineConfig({
     version: pkg.version,
     description: pkg.description,
   },
-  commands,
+  commands: { ...commands, mcp },
 });
 
 try {

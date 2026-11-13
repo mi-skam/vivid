@@ -14,7 +14,10 @@ import transactionsList from './commands/transactions/list';
 import transactionsSummary from './commands/transactions/summary';
 import transactionsWatch from './commands/transactions/watch';
 
-/** Every command, keyed `group:action`. */
+/**
+ * Every command except `mcp`, keyed `group:action`. `mcp` is added in
+ * `src/index.ts`, because it builds its tools from this map.
+ */
 export const commands = {
   login,
   logout,
