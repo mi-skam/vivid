@@ -8,6 +8,7 @@ import {
   momentLabel,
   parsePeriod,
 } from '../src/period';
+import { internalGroupIds } from '../src/query';
 import { summarize } from '../src/summary';
 import { ACCOUNT_ID, CARD_ID, transaction, tx } from './fixtures';
 import { captureLog } from './helpers';
@@ -150,6 +151,7 @@ describe('summarize', () => {
   const context = {
     accountNames: new Map([[ACCOUNT_ID, 'ACME GmbH']]),
     cardNames: new Map([[CARD_ID, 'ACME Travel']]),
+    internalGroups: new Set(['group-internal']),
   };
   const records = [
     tx({ id: 'a', amount: '-100.00' }),
@@ -164,6 +166,7 @@ describe('summarize', () => {
       id: 'e',
       amount: '-500.00',
       type: 'transfer',
+      group_id: 'group-internal',
       merchant: null,
       card: null,
     }),
@@ -227,5 +230,70 @@ describe('summarize', () => {
       context,
     );
     expect(months.map((r) => r.group)).toEqual(['2025-05', '2025-03']);
+  });
+
+  it('counts transfers with other banks as money in and out', () => {
+    const transfer = (id: string, amount: string, group_id: string) =>
+      tx({
+        id,
+        amount,
+        group_id,
+        type: 'transfer',
+        merchant: null,
+        card: null,
+      });
+    const rows = summarize(
+      [
+        transfer('in', '1500.00', 'group-customer'),
+        transfer('out', '-100.00', 'group-supplier'),
+        transfer('moved', '-490.00', 'group-internal'),
+        tx({ id: 'fx', amount: '-50.00', type: 'exchange', merchant: null }),
+      ],
+      'type',
+      context,
+    );
+    expect(rows).toEqual([
+      {
+        currency: 'EUR',
+        group: 'transfer',
+        count: 3,
+        out: '-100.00',
+        refunds: '0.00',
+        in: '1500.00',
+        transfers: '-490.00',
+        net: '910.00',
+      },
+      expect.objectContaining({
+        group: 'exchange',
+        out: '0.00',
+        in: '0.00',
+        transfers: '-50.00',
+      }),
+    ]);
+  });
+});
+
+describe('internalGroupIds', () => {
+  const OTHER_ACCOUNT = '00000000-0000-4000-8000-000000000002';
+
+  it('finds the transfers booked on two accounts', () => {
+    const groups = internalGroupIds([
+      tx({ id: 'a', type: 'transfer', group_id: 'moved', amount: '-490.00' }),
+      tx({
+        id: 'b',
+        type: 'transfer',
+        group_id: 'moved',
+        amount: '490.00',
+        account_id: OTHER_ACCOUNT,
+      }),
+      tx({ id: 'c', type: 'transfer', group_id: 'received' }),
+      // Two records of one event on the same account are not a movement.
+      tx({ id: 'd', type: 'transfer', group_id: 'twice' }),
+      tx({ id: 'e', type: 'transfer', group_id: 'twice' }),
+      // Only transfers count, whatever their group.
+      tx({ id: 'f', group_id: 'payment' }),
+      tx({ id: 'g', group_id: 'payment', account_id: OTHER_ACCOUNT }),
+    ]);
+    expect([...groups]).toEqual(['moved']);
   });
 });
