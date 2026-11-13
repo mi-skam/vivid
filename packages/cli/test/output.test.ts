@@ -1,9 +1,11 @@
 import type { Account, Transaction } from '@mi-skam/vivid-sdk';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   accountIban,
   amountLabel,
+  displayWidth,
   originalAmountLabel,
+  printTable,
   toTimestamp,
 } from '../src/output';
 import { account, transaction } from './fixtures';
@@ -45,5 +47,39 @@ describe('output helpers', () => {
       '2025-03-01T10:00:00+01:00',
     );
     expect(toTimestamp(undefined)).toBeUndefined();
+  });
+});
+
+describe('displayWidth', () => {
+  it('counts terminal columns, not code units', () => {
+    expect(displayWidth('ACME GmbH')).toBe(9);
+    expect(displayWidth('Société')).toBe(7);
+    expect(displayWidth('Socie\u0301te\u0301')).toBe(7);
+    expect(displayWidth('株式会社')).toBe(8);
+    expect(displayWidth('ＡＣＭＥ')).toBe(8);
+    expect(displayWidth('한국')).toBe(4);
+    expect(displayWidth('🚀')).toBe(2);
+    expect(displayWidth('👍🏽')).toBe(2);
+    expect(displayWidth('')).toBe(0);
+  });
+});
+
+describe('printTable', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('aligns columns after wide characters', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    printTable([
+      { merchant: 'ACME', amount: '-12.50 EUR' },
+      { merchant: '株式会社', amount: '-3.00 EUR' },
+    ]);
+    const lines = log.mock.calls.map(([line]) => String(line).trimEnd());
+    expect(lines).toEqual([
+      'MERCHANT  AMOUNT',
+      'ACME      -12.50 EUR',
+      '株式会社  -3.00 EUR',
+    ]);
   });
 });
