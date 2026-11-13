@@ -11,7 +11,7 @@ import dbSync from '../src/commands/db/sync';
 import list from '../src/commands/transactions/list';
 import summary from '../src/commands/transactions/summary';
 import { ACCOUNT_ID, account, card, transaction, tx } from './fixtures';
-import { captureLog, jsonResponse, requests } from './helpers';
+import { captureLog, jsonResponse, lastRequest, requests } from './helpers';
 
 const fetchMock = vi.fn();
 const id = (n: number) =>
@@ -138,6 +138,88 @@ describe('insight commands', () => {
       expect.objectContaining({ group: '-SUM(A1)', count: 1, out: '-99.00' }),
       expect.objectContaining({ group: 'ACME CLOUD', count: 1, out: '-10.00' }),
     ]);
+  });
+
+  it('keeps a transfer between own accounts out of money in and out', async () => {
+    const other = { ...account, id: id(2), name: 'Reserve' };
+    const transfer = (n: number, amount: string, accountId: string) =>
+      tx({
+        id: id(n),
+        amount,
+        account_id: accountId,
+        type: 'transfer',
+        group_id: n < 13 ? 'group-moved' : `group-${n}`,
+        merchant: null,
+        card: null,
+      });
+    const moved = [
+      transfer(11, '-490.00', account.id),
+      transfer(12, '490.00', other.id),
+    ];
+    const received = transfer(13, '1500.00', account.id);
+    serve({
+      '/api/v1/accounts/current/list': () =>
+        jsonResponse({ accounts: [account, other] }),
+      '/api/v1/transactions/list': () =>
+        jsonResponse({
+          transactions: [...moved, received],
+          next_cursor: null,
+        }),
+    });
+    const output = captureLog();
+
+    await summary.action({ json: true, by: 'account' } as never, undefined);
+
+    expect(JSON.parse(output())).toEqual([
+      expect.objectContaining({
+        group: 'ACME GmbH',
+        in: '1500.00',
+        transfers: '-490.00',
+        net: '1010.00',
+      }),
+      expect.objectContaining({
+        group: 'Reserve',
+        in: '0.00',
+        transfers: '490.00',
+      }),
+    ]);
+    // Every account was fetched, so both sides were already there.
+    expect(requests(fetchMock)).toHaveLength(2);
+
+    // With one account only, the other side needs the transfers of all.
+    fetchMock.mockClear();
+    vi.spyOn(console, 'log').mockClear();
+    serve({
+      '/api/v1/accounts/current/list': () =>
+        jsonResponse({ accounts: [account, other] }),
+      '/api/v1/transactions/list': () => {
+        const { body } = lastRequest(fetchMock);
+        return jsonResponse({
+          transactions: body['types']
+            ? [...moved, received]
+            : [moved[0], received],
+          next_cursor: null,
+        });
+      },
+    });
+    const filtered = captureLog();
+
+    await summary.action(
+      { json: true, by: 'account', account: [account.id] } as never,
+      undefined,
+    );
+
+    expect(JSON.parse(filtered())).toEqual([
+      expect.objectContaining({
+        group: 'ACME GmbH',
+        in: '1500.00',
+        transfers: '-490.00',
+      }),
+    ]);
+    expect(lastRequest(fetchMock).body).toMatchObject({
+      account_ids: [account.id, other.id],
+      types: ['transfer'],
+    });
   });
 
   it('syncs once and then answers --local without any request', async () => {

@@ -21,7 +21,7 @@ const AMOUNT_COLUMNS = ['out', 'refunds', 'in', 'transfers', 'net'];
 
 export default defineCommand({
   description:
-    'Sum up transactions per merchant, category, card, account, type or month, separately per currency. Counts completed transactions unless --include-pending is set; declined ones never count.',
+    'Sum up transactions per merchant, category, card, account, type or month, separately per currency. Counts completed transactions unless --include-pending is set; declined ones never count. Per row: out is money spent (card payments, fees, transfers sent to other banks), refunds are card refunds, in is money received (such as transfers from other banks), transfers is the net of money moved between your own accounts and of exchanges, and net is the sum of the four.',
   options: defineOptions(
     z.object({
       by: z
@@ -45,13 +45,13 @@ export default defineCommand({
     const states = new Set(
       options.includePending ? ['completed', 'pending'] : ['completed'],
     );
-    const { transactions, accountNames, cardNames, period } =
-      await queryTransactions(options);
+    const { transactions, accountNames, cardNames, period, internalGroups } =
+      await queryTransactions(options, { internalGroups: true });
     const counted = transactions.filter((t) => states.has(t.state));
     const rows = summarize(
       counted,
       options.by ?? 'merchant',
-      { accountNames, cardNames },
+      { accountNames, cardNames, internalGroups },
       { withTotals: format === 'table' },
     );
     if (format === 'json') {
@@ -78,7 +78,7 @@ export default defineCommand({
           ? 'everything stored locally'
           : 'the last 90 days';
     consola.info(
-      `${counted.length} ${[...states].join(' and ')} transactions, ${range}. OUT is money spent; TRANSFERS (transfers and exchanges) stay out of it.`,
+      `${counted.length} ${[...states].join(' and ')} transactions, ${range}. OUT is money spent, IN money received; TRANSFERS (between your own accounts, and exchanges) stay out of both.`,
     );
     printTable(
       cells.map((row) =>

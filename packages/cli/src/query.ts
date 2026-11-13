@@ -96,6 +96,35 @@ export interface TransactionSet {
   /** Card names by ID, as far as they were known without an extra request. */
   cardNames: Map<string, string>;
   period: Period;
+  /**
+   * Group IDs of transfers between two visible accounts; see
+   * {@link internalGroupIds}. Empty unless asked for with `internalGroups`.
+   */
+  internalGroups: Set<string>;
+}
+
+/**
+ * The group IDs of transfers booked on more than one account: money moved
+ * between the company's own accounts, whose two sides share a `group_id`.
+ * A transfer has no counterparty field, so this is the only way to tell such
+ * a movement from a payment to or from another bank. It needs both sides, so
+ * pass the transfers of every visible account, not of a filtered selection.
+ */
+export function internalGroupIds(transactions: Transaction[]): Set<string> {
+  const accountsByGroup = new Map<string, Set<string>>();
+  for (const transaction of transactions) {
+    if (transaction.type !== 'transfer') {
+      continue;
+    }
+    const accounts = accountsByGroup.get(transaction.group_id) ?? new Set();
+    accountsByGroup.set(transaction.group_id, accounts);
+    accounts.add(transaction.account_id);
+  }
+  return new Set(
+    [...accountsByGroup.entries()]
+      .filter(([, accounts]) => accounts.size > 1)
+      .map(([groupId]) => groupId),
+  );
 }
 
 /** Matches a transaction's card against an ID, or last four digits. */
@@ -136,7 +165,12 @@ function rejectBothAccountFilters(accounts: string[], types: string[]): void {
  */
 export async function queryTransactions(
   filters: TransactionFilters,
-  options: { limit?: number | undefined; now?: Date } = {},
+  options: {
+    limit?: number | undefined;
+    now?: Date;
+    /** Also find the transfers between own accounts, which may cost requests. */
+    internalGroups?: boolean;
+  } = {},
 ): Promise<TransactionSet> {
   const accountTargets = listOption(filters.account);
   const accountTypes = listOption(filters.accountType);
@@ -152,6 +186,7 @@ export async function queryTransactions(
         period,
         limit: options.limit,
         now: options.now ?? new Date(),
+        internalGroups: options.internalGroups ?? false,
       });
   return {
     ...result,
@@ -171,7 +206,11 @@ interface Resolved {
 
 async function queryApi(
   filters: TransactionFilters,
-  resolved: Resolved & { limit: number | undefined; now: Date },
+  resolved: Resolved & {
+    limit: number | undefined;
+    now: Date;
+    internalGroups: boolean;
+  },
 ): Promise<TransactionSet> {
   const { accountTargets, accountTypes, types, period } = resolved;
   const windowStart = historyWindowStart(resolved.now);
@@ -198,7 +237,13 @@ async function queryApi(
   const cardNames = new Map<string, string>();
   const matchCard = await apiCardMatcher(client, filters.card, cardNames);
   if (accountIds.length === 0 && accountTypes.length === 0) {
-    return { transactions: [], accountNames, cardNames, period };
+    return {
+      transactions: [],
+      accountNames,
+      cardNames,
+      period,
+      internalGroups: new Set(),
+    };
   }
   const clientSide =
     hasPeriod(period) || matchCard !== undefined || Boolean(filters.merchant);
@@ -220,6 +265,23 @@ async function queryApi(
     // Client-side filters need every record before the limit applies.
     { limit: clientSide ? undefined : resolved.limit },
   );
+  let internalGroups = new Set<string>();
+  if (resolved.internalGroups) {
+    // Both sides of a transfer are needed. They are all here when every
+    // visible account was fetched unfiltered; otherwise fetch the transfers
+    // of every visible account once more.
+    const complete =
+      accountTargets.length === 0 &&
+      accountTypes.length === 0 &&
+      types.length === 0 &&
+      filters.state === undefined &&
+      filters.updatedFrom === undefined &&
+      filters.updatedTo === undefined &&
+      (clientSide || resolved.limit === undefined);
+    internalGroups = internalGroupIds(
+      complete ? transactions : await fetchTransfers(client, accountNames),
+    );
+  }
   return {
     transactions: applyFilters(
       transactions,
@@ -230,7 +292,34 @@ async function queryApi(
     accountNames,
     cardNames,
     period,
+    internalGroups,
   };
+}
+
+/**
+ * Every transfer of every visible account, in the API's 90-day window. The
+ * account list it needs also fills in `accountNames`.
+ */
+async function fetchTransfers(
+  client: Vivid,
+  accountNames: Map<string, string>,
+): Promise<Transaction[]> {
+  const accounts = await client.accounts.list();
+  for (const account of accounts) {
+    accountNames.set(account.id, account.name);
+  }
+  const accountIds = accounts.map((account) => account.id);
+  if (accountIds.length === 0) {
+    return [];
+  }
+  return fetchAll(async (page) => {
+    const response = await client.transactions.list({
+      accountIds,
+      types: ['transfer'],
+      ...page,
+    });
+    return { items: response.transactions, nextCursor: response.next_cursor };
+  });
 }
 
 /**
@@ -321,6 +410,10 @@ async function queryLocal(
       accountNames,
       cardNames,
       period,
+      // No request: the database holds the transfers of every synced account.
+      internalGroups: internalGroupIds(
+        store.transactions({ types: ['transfer'] }),
+      ),
     };
   });
 }
