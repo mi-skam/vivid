@@ -48,7 +48,7 @@ Zero runtime dependencies, native `fetch`, ESM only.
 
 Built on `zodline` + `zod` + `consola`.
 
-- `src/index.ts` — registers every command in a flat `commands` map keyed `group:action` (e.g. `transactions:list`). New commands must be imported and registered here. Top-level try/catch funnels all errors through `formatError`, then sets exit code 1.
+- `src/commands.ts` — every command in a flat `commands` map keyed `group:action` (e.g. `transactions:list`). New commands must be imported and registered here; `test/commands-registry.test.ts` fails for a command file that is not. `src/index.ts` runs the CLI; its top-level try/catch funnels all errors through `formatError`, then sets exit code 1.
 - `src/commands/<group>/<action>.ts` — one `defineCommand({ description, args?, options: defineOptions(z.object({…})), action })` per file, default-exported.
 - `src/client.ts` — `requireClient()` resolves the key and exits with a hint if absent; `createClient()` sets the CLI `User-Agent` (`@mi-skam/vivid/<version>`).
 - `src/config.ts` — key resolution order: `VIVID_API_KEY` env var → `~/.config/vivid/config.json` (`apiKey`, respects `XDG_CONFIG_HOME`, written with mode `0600`). No OS keyring.
