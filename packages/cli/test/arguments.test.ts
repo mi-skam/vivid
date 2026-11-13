@@ -91,6 +91,10 @@ describe('positional primary inputs', () => {
 
   it('every command supports --json', () => {
     for (const [path, module] of Object.entries(modules)) {
+      // The stdout of `mcp` is the protocol itself.
+      if (path.endsWith('/commands/mcp.ts')) {
+        continue;
+      }
       expect(
         module.options?.schema.shape ?? {},
         `${path} has no --json option`,

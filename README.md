@@ -19,6 +19,7 @@ Unofficial Node.js SDK and CLI for the [Vivid Business](https://vivid.money/en-e
 - **Scriptable CLI**: `--json` on every command, non-interactive mode, exit codes `0`/`1`, and cursor pagination handled for you.
 - **Insights and export**: filter by payment date, card or merchant; spending summaries per merchant, category, card or month; CSV for Excel; live watch of new transactions.
 - **History beyond 90 days**: `vivid db:sync` keeps every transaction in a local SQLite database that list and summary commands can read without a request.
+- **MCP server**: `vivid mcp` offers the read commands as tools to Claude Code and other MCP clients.
 - **Zero-dependency SDK**: native `fetch`, hand-written types, retries with backoff.
 
 ## Getting started
