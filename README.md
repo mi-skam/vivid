@@ -66,7 +66,7 @@ Unit tests mock `fetch` and never reach the API. CI runs on Node.js 22 and 24.
 
 ### Releases
 
-Releases are GitHub releases only; nothing is published to npm. Both packages always share one version, tagged `vX.Y.Z`. Shipping a release takes one manual step: merging the release PR.
+Releases are GitHub releases only; nothing is published to npm. Both packages always share one version, tagged `vX.Y.Z`. Shipping a release takes one manual step: either merge a PR that carries the `release` label, or merge the release PR.
 
 1. **Use conventional commit prefixes.** When squash-merging, the PR title becomes the commit message, so give the title the prefix. While the version is below 1.0:
 
@@ -79,12 +79,16 @@ Releases are GitHub releases only; nothing is published to npm. Both packages al
 
 2. **release-please opens a release PR (automatic).** After each push to `main`, the Release workflow opens or updates a `chore: release X.Y.Z` PR if there are `fix:` or `feat:` commits since the last release. It bumps both package versions, the CLI's pinned SDK version and the lockfile, and updates `CHANGELOG.md`. Don't edit it; it keeps updating itself.
 
-3. **Merge the release PR when you want to ship.** Use merge or squash, never rebase:
+3. **Approve the release, on the PR you are merging or later.**
+   - **Right away:** add the `release` label to the PR before merging it (in the PR sidebar, or `gh pr edit <number> --add-label release`). When it is merged, the Release workflow merges the release PR itself and continues with step 4. Without `fix:` or `feat:` commits there is nothing to release, and the run says so.
+   - **Later:** merge without the label; changes collect in the release PR. Merge that one when you want to ship. Use merge or squash, never rebase:
 
-   ```bash
-   gh pr list
-   gh pr merge <number> --merge
-   ```
+     ```bash
+     gh pr list
+     gh pr merge <number> --merge
+     ```
+
+   In the labelled flow the workflow waits for the release PR's CI to pass before merging it; if it fails, merge the release PR by hand once it is green.
 
 4. **The release is created (automatic, about 2–3 minutes).** The Release workflow tags `vX.Y.Z` and creates the GitHub release with the changelog as notes. It then calls `.github/workflows/github-release.yml`, which builds, lints, typechecks and tests the tag, packs the tarballs, verifies that they install and run, and attaches `vivid-sdk-X.Y.Z.tgz`, `vivid-cli-X.Y.Z.tgz` and `SHA256SUMS`.
 

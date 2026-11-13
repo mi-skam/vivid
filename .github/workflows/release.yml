@@ -1,11 +1,17 @@
 name: Release
 
 # release-please maintains the release pull request, the changelog and the
-# version bumps. Merging that pull request is the approval: it tags `vX.Y.Z`
-# and creates the GitHub release as a draft (immutable releases are enabled, so
-# assets must be attached before publishing). The assets job then builds,
-# verifies and attaches the tarballs and publishes the release. Nothing is
-# published to npm.
+# version bumps. A release is approved in one of two ways:
+#
+# - Merge a pull request that carries the `release` label. This run then
+#   merges the release pull request itself and creates the release, so the
+#   approval happens on the pull request that is being shipped.
+# - Merge the release pull request by hand, as before.
+#
+# Either way it tags `vX.Y.Z` and creates the GitHub release as a draft
+# (immutable releases are enabled, so assets must be attached before
+# publishing). The assets job then builds, verifies and attaches the tarballs
+# and publishes the release. Nothing is published to npm.
 
 on:
   push:
@@ -27,12 +33,66 @@ jobs:
       issues: write
       pull-requests: write
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+      release_created: ${{ steps.release.outputs.release_created || steps.ship.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name || steps.ship.outputs.tag_name }}
     steps:
       - name: Maintain release pull request and release
         id: release
         uses: googleapis/release-please-action@v5
+
+      - name: Merge the release pull request if the merged pull request is labelled `release`
+        id: approve
+        if: github.event_name == 'push' && steps.release.outputs.release_created != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          labelled=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq 'any(.[].labels[]; .name == "release")')
+          if [ "$labelled" != "true" ]; then
+            echo "The merged pull request has no \`release\` label; leaving the release pull request open."
+            exit 0
+          fi
+          number=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --label "autorelease: pending" --json number --jq '.[0].number // empty')
+          if [ -z "$number" ]; then
+            echo "::warning::Labelled \`release\`, but there is nothing to release: no fix or feat commits since the last release."
+            exit 0
+          fi
+
+          # Wait for the release pull request's CI: it has just been updated,
+          # and protected branches refuse the merge until required checks pass.
+          for attempt in $(seq 1 12); do
+            output=$(gh pr checks "$number" --repo "$GITHUB_REPOSITORY" 2>&1) || true
+            grep -q "no checks reported" <<<"$output" || break
+            sleep 10
+          done
+          if ! timeout 900 gh pr checks "$number" --repo "$GITHUB_REPOSITORY" \
+            --watch --fail-fast --interval 15; then
+            echo "::error::The checks of release pull request #$number failed or did not finish. Fix them and merge it by hand."
+            exit 1
+          fi
+
+          # GitHub computes mergeability asynchronously, so the first attempts
+          # may still be refused.
+          for attempt in 1 2 3 4 5 6; do
+            if gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash; then
+              # Merged with this run's token, which does not trigger another
+              # workflow run; the next step creates the release instead.
+              echo "merged=true" >> "$GITHUB_OUTPUT"
+              echo "Merged release pull request #$number because the merged pull request is labelled \`release\`." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not merge release pull request #$number. Merge it by hand to release."
+          exit 1
+
+      - name: Create the release from the merged release pull request
+        id: ship
+        if: steps.approve.outputs.merged == 'true'
+        uses: googleapis/release-please-action@v5
+        with:
+          skip-github-pull-request: true
 
   assets:
     needs: release
