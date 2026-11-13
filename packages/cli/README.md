@@ -6,7 +6,7 @@ Unofficial command-line interface for the [Vivid Business](https://vivid.money/e
 
 - 🏦 **Accounts**: List payment accounts with IBAN, state and balances.
 - 💳 **Transactions**: List and filter the transactions of the last 90 days by payment date, card or merchant, across every page.
-- 📊 **Summaries**: Spending per merchant, category, card, account, type or month, per currency, with refunds and transfers kept apart.
+- 📊 **Summaries**: Spending per merchant, category, card, account, type or month, per currency, with refunds and movements between your own accounts kept apart.
 - 📄 **CSV export**: Every list as CSV, in standard or German Excel dialect.
 - 🗄️ **Local history**: A local SQLite database that keeps transactions beyond the API's 90 days and answers queries without a request.
 - 👀 **Watch**: Print new and changed transactions as they happen.
@@ -331,10 +331,10 @@ vivid transactions:summary [options]
 
 Columns:
 
-- `OUT`: money spent — card payments, ATM withdrawals, fees and other debits.
+- `OUT`: money spent — card payments, ATM withdrawals, fees, transfers sent to other banks and other debits.
 - `REFUNDS`: card refunds, kept apart so `OUT` stays what was charged; grouped by merchant they net against the merchant's payments in `NET`.
-- `IN`: other credits.
-- `TRANSFERS`: transfers and exchanges, which move money rather than spend it; never part of `OUT` or `IN`.
+- `IN`: money received, such as transfers from other banks.
+- `TRANSFERS`: money moved between your own accounts, and exchanges; never part of `OUT` or `IN`. The API names no counterparty, so a transfer counts as your own when its two sides (one `group_id`) are on two accounts the key can see. With `--account`, that takes one more request per 500 transfers to find the other side. A transfer to an account the key cannot see, or whose other side has left the 90-day window, counts as `OUT` or `IN`.
 - `NET`: the sum of all of them.
 
 The table ends with a `TOTAL` row per currency. `category` groups merchant category codes (MCC) into about 20 coarse groups such as `Software & IT` or `Travel`; unknown codes show as `MCC 1234`, records without a merchant as their type, e.g. `(transfer)`.

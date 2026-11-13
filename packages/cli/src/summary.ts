@@ -13,20 +13,23 @@ export const SUMMARY_GROUPS = [
 ] as const;
 export type SummaryGroup = (typeof SUMMARY_GROUPS)[number];
 
-/** Moves money between accounts rather than spending or earning it. */
-const TRANSFER_TYPES = new Set(['transfer', 'exchange']);
-
 export interface SummaryRow {
   currency: string;
   group: string;
   count: number;
-  /** Money spent: debits other than transfers, e.g. card payments, ATM, fees. */
+  /**
+   * Money spent: card payments, ATM, fees and transfers sent to other banks —
+   * every debit that is not a movement between own accounts.
+   */
   out: string;
   /** Card refunds, kept apart so `out` stays what was actually charged. */
   refunds: string;
-  /** Other credits that are not transfers. */
+  /** Money received, such as transfers from other banks; never card refunds. */
   in: string;
-  /** Net of transfers and exchanges, which move money rather than spend it. */
+  /**
+   * Net of money moved between own accounts: exchanges, and transfers whose
+   * group is in {@link SummaryContext.internalGroups}.
+   */
   transfers: string;
   net: string;
 }
@@ -42,6 +45,23 @@ interface Totals {
 export interface SummaryContext {
   accountNames: Map<string, string>;
   cardNames: Map<string, string>;
+  /**
+   * Group IDs of transfers between own accounts (`internalGroupIds` in
+   * `src/query.ts`). A transfer outside it is money sent or received.
+   */
+  internalGroups: Set<string>;
+}
+
+/** Moves money between own accounts rather than spending or earning it. */
+function isInternal(
+  transaction: Transaction,
+  context: SummaryContext,
+): boolean {
+  return (
+    transaction.type === 'exchange' ||
+    (transaction.type === 'transfer' &&
+      context.internalGroups.has(transaction.group_id))
+  );
 }
 
 function groupKey(
@@ -78,10 +98,14 @@ function groupKey(
   }
 }
 
-function add(totals: Totals, transaction: Transaction): void {
+function add(
+  totals: Totals,
+  transaction: Transaction,
+  context: SummaryContext,
+): void {
   const cents = toCents(transaction.amount);
   totals.count += 1;
-  if (TRANSFER_TYPES.has(transaction.type)) {
+  if (isInternal(transaction, context)) {
     totals.transfers += cents;
   } else if (transaction.type === 'card_refund') {
     totals.refunds += cents;
@@ -135,7 +159,7 @@ export function summarize(
     const key = groupKey(transaction, by, context);
     const totals = groups.get(key) ?? empty();
     groups.set(key, totals);
-    add(totals, transaction);
+    add(totals, transaction, context);
   }
   const rows: SummaryRow[] = [];
   for (const currency of [...byCurrency.keys()].sort()) {
