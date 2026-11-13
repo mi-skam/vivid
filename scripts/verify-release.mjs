@@ -109,6 +109,7 @@ try {
     'transactions:watch',
     'db:sync',
     'db:info',
+    'db:history',
     'cards:list',
     'cards:get',
   ])

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import accountsList from '../src/commands/accounts/list';
 import cardsList, { limitsLabel } from '../src/commands/cards/list';
+import dbHistory, { describeChanges } from '../src/commands/db/history';
 import dbInfo from '../src/commands/db/info';
 import dbSync from '../src/commands/db/sync';
 import list from '../src/commands/transactions/list';
@@ -187,6 +188,54 @@ describe('insight commands', () => {
       cards: 0,
       transactions: 1,
     });
+  });
+
+  it('shows the change log of a transaction after two syncs', async () => {
+    let version = tx({
+      id: id(1),
+      state: 'pending',
+      amount: '-12.00',
+      updated_at: '2026-11-01T10:00:00Z',
+    });
+    serve({
+      '/api/v1/accounts/current/list': () =>
+        jsonResponse({ accounts: [account] }),
+      '/api/v1/cards/list': () =>
+        jsonResponse({ cards: [], next_cursor: null }),
+      '/api/v1/transactions/list': () =>
+        jsonResponse({ transactions: [version], next_cursor: null }),
+    });
+    await dbSync.action({ json: true }, undefined);
+    version = {
+      ...version,
+      state: 'completed',
+      amount: '-12.50',
+      updated_at: '2026-11-02T10:00:00Z',
+    };
+    await dbSync.action({ json: true }, undefined);
+
+    vi.spyOn(console, 'log').mockClear();
+    const output = captureLog();
+    await dbHistory.action({ json: true, limit: 20 }, [id(1)]);
+    const rows = JSON.parse(output());
+    expect(
+      rows.map((r: { change: string; changes: string }) => [
+        r.change,
+        r.changes,
+      ]),
+    ).toEqual([
+      ['new', ''],
+      ['updated', 'state: pending → completed; amount: -12.00 → -12.50'],
+    ]);
+  });
+
+  it('describes changed fields and ignores updated_at', () => {
+    expect(
+      describeChanges(
+        tx({ merchant: null, updated_at: 'a' }),
+        tx({ updated_at: 'b' }),
+      ),
+    ).toBe(`merchant: – → ${JSON.stringify(transaction.merchant)}`);
   });
 
   it('fails clearly when --local has no database yet', async () => {

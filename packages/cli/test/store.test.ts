@@ -81,6 +81,76 @@ describe('Store', () => {
     expect(store.transactions()).toEqual([settled]);
   });
 
+  it('logs every new version once, newest first', () => {
+    const now = new Date('2026-11-12T00:00:00Z');
+    const pending = tx({
+      id: id(1),
+      state: 'pending',
+      amount: '-12.00',
+      updated_at: '2026-11-01T10:00:00Z',
+    });
+    const settled = {
+      ...pending,
+      state: 'completed',
+      amount: '-12.50',
+      updated_at: '2026-11-02T10:00:00Z',
+    };
+    store.upsertTransactions([pending], now);
+    store.upsertTransactions(
+      [settled, tx({ id: id(2), updated_at: '2026-11-03T10:00:00Z' })],
+      now,
+    );
+    // Seen again (sync overlap) and an older copy: no new log rows.
+    store.upsertTransactions([settled, pending], now);
+    const versions = store.versions({ transactionId: id(1) });
+    expect(versions.map((v) => [v.updatedAt, v.transaction.state])).toEqual([
+      ['2026-11-02T10:00:00.000Z', 'completed'],
+      ['2026-11-01T10:00:00.000Z', 'pending'],
+    ]);
+    expect(store.previousVersion(id(1), '2026-11-02T10:00:00.000Z')).toEqual(
+      pending,
+    );
+    expect(store.previousVersion(id(1), '2026-11-01T10:00:00.000Z')).toBeNull();
+    expect(store.versions({ limit: 2 }).map((v) => v.transaction.id)).toEqual([
+      id(2),
+      id(1),
+    ]);
+  });
+
+  it('upgrades a version 1 database and keeps current rows as first versions', async () => {
+    store.upsertTransactions(
+      [tx({ id: id(1) })],
+      new Date('2026-11-12T00:00:00Z'),
+    );
+    store.close();
+    const { DatabaseSync } = await import('node:sqlite');
+    const raw = new DatabaseSync(join(dir, 'nested', 'vivid.db'));
+    raw.exec('DROP TABLE transaction_versions; PRAGMA user_version = 1;');
+    raw.close();
+
+    store = await Store.open({
+      create: false,
+      path: join(dir, 'nested', 'vivid.db'),
+    });
+
+    expect(
+      store.versions().map((v) => [v.transaction.id, v.recordedAt]),
+    ).toEqual([[id(1), '2026-11-12T00:00:00.000Z']]);
+    expect((await store.info()).versions).toBe(1);
+  });
+
+  it('refuses a database from a newer version', async () => {
+    store.close();
+    const { DatabaseSync } = await import('node:sqlite');
+    const raw = new DatabaseSync(join(dir, 'nested', 'vivid.db'));
+    raw.exec('PRAGMA user_version = 99;');
+    raw.close();
+    await expect(
+      Store.open({ create: false, path: join(dir, 'nested', 'vivid.db') }),
+    ).rejects.toThrow('newer vivid version');
+    store = await Store.open({ create: true, path: join(dir, 'other.db') });
+  });
+
   it('queries by account, type, state and payment period, newest first', () => {
     const now = new Date();
     store.upsertTransactions(

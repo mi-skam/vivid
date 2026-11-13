@@ -5,6 +5,7 @@ import accountsGet from './commands/accounts/get';
 import accountsList from './commands/accounts/list';
 import cardsGet from './commands/cards/get';
 import cardsList from './commands/cards/list';
+import dbHistory from './commands/db/history';
 import dbInfo from './commands/db/info';
 import dbSync from './commands/db/sync';
 import doctor from './commands/doctor';
@@ -39,6 +40,7 @@ const config = defineConfig({
     'transactions:watch': transactionsWatch,
     'db:sync': dbSync,
     'db:info': dbInfo,
+    'db:history': dbHistory,
   },
 });
 
