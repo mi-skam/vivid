@@ -14,11 +14,13 @@ export type VividErrorCode = OpenEnum<
   | 'user_not_in_entity'
   | 'issuer_not_permitted'
   | 'entity_inactive'
+  | 'tariff_unavailable'
   | 'not_found'
   | 'outside_history_window'
   | 'unsupported_media_type'
   | 'rate_limited'
   | 'internal_error'
+  | 'service_unavailable'
 >;
 
 /** One entry of the `errors` list in the API's error envelope. */

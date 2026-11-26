@@ -39,6 +39,7 @@ describe('formatError', () => {
     [403, 'user_not_in_entity', 'left the company'],
     [403, 'issuer_not_permitted', 'Manage API tokens'],
     [403, 'entity_inactive', 'Contact Vivid support'],
+    [403, 'tariff_unavailable', 'plan does not include API access'],
     [404, 'outside_history_window', 'older than 90 days'],
     [429, 'rate_limited', 'rate limit'],
   ])('maps %i %s to a hint', (status, code, hint) => {
@@ -48,6 +49,12 @@ describe('formatError', () => {
   it('includes the trace id for server errors', () => {
     const message = formatError(vividError(503, 'internal_error'));
     expect(message).toContain('503');
+    expect(message).toContain('trace-42');
+  });
+
+  it('maps 503 service_unavailable to a hint with the trace id', () => {
+    const message = formatError(vividError(503, 'service_unavailable'));
+    expect(message).toContain('temporarily unavailable');
     expect(message).toContain('trace-42');
   });
 
