@@ -19,7 +19,7 @@
     "@mi-skam/vivid-sdk": "0.3.0",
     "consola": "3.4.2",
     "zod": "4.6.7",
-    "zodline": "0.3.0"
+    "zodline": "0.4.0"
   },
   "homepage": "https://github.com/mi-skam/vivid",
   "repository": {
