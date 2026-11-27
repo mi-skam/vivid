@@ -23,10 +23,14 @@ const HINTS: Record<string, string> = {
   issuer_not_permitted: `The member who created the API key lost the Manage API tokens permission. ${NEW_KEY_HINT}`,
   entity_inactive:
     'Your company cannot use the Vivid API right now. Contact Vivid support.',
+  tariff_unavailable:
+    "Your company's Vivid plan does not include API access. Change the plan in the Vivid Business app.",
   outside_history_window:
     'Transactions older than 90 days are not available through the Vivid API.',
   rate_limited:
     'The Vivid API rate limit was reached (60 requests per minute per key). Wait a minute and try again.',
+  service_unavailable:
+    'The Vivid API is temporarily unavailable. Wait a moment and try again.',
 };
 
 function withTrace(message: string, error: VividError): string {
@@ -34,13 +38,14 @@ function withTrace(message: string, error: VividError): string {
 }
 
 function formatVividError(error: VividError): string {
+  const hint = error.codes.map((code) => HINTS[code]).find(Boolean);
   if (error.status >= 500) {
     return withTrace(
-      `The Vivid API failed with status ${error.status}. Try again later; if it repeats, contact Vivid support with the trace id.`,
+      hint ??
+        `The Vivid API failed with status ${error.status}. Try again later; if it repeats, contact Vivid support with the trace id.`,
       error,
     );
   }
-  const hint = error.codes.map((code) => HINTS[code]).find(Boolean);
   if (hint) {
     return hint;
   }
