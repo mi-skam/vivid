@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/mi-skam/vivid/compare/v0.3.0...v0.3.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* explain the tariff_unavailable and service_unavailable errors ([#21](https://github.com/mi-skam/vivid/issues/21)) ([97df506](https://github.com/mi-skam/vivid/commit/97df506397ae8e0a7b85d52da4b2867f6623b38f))
+
 ## [0.3.0](https://github.com/mi-skam/vivid/compare/v0.2.0...v0.3.0) (2026-11-13)
 
 
